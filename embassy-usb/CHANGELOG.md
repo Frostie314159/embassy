@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Added `Config` struct for CDC-NCM class and made MTU configurable.
+
 ## 0.4.0 - 2025-01-15
 
 - Change config defaults to to composite with IADs. This ensures embassy-usb Just Works in more cases when using classes with multiple interfaces, or multiple classes. (breaking change)
