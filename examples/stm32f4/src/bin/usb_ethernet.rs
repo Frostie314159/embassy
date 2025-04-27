@@ -113,7 +113,12 @@ async fn main(spawner: Spawner) {
 
     // Create classes on the builder.
     static STATE: StaticCell<State> = StaticCell::new();
-    let class = CdcNcmClass::new(&mut builder, STATE.init(State::new()), host_mac_addr, 64);
+    let config = embassy_usb::class::cdc_ncm::Config {
+        mac_address: host_mac_addr,
+        max_segment_size: MTU as u16,
+        max_packet_size: 64,
+    };
+    let class = CdcNcmClass::new(&mut builder, STATE.init(State::new()), config);
 
     // Build the builder.
     let usb = builder.build();

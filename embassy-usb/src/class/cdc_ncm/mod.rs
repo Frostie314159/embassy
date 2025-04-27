@@ -239,6 +239,16 @@ impl<'d> Handler for Control<'d> {
     }
 }
 
+/// Config for the [CdcNcmClass].
+pub struct Config {
+    /// MAC address of the device.
+    pub mac_address: [u8; 6],
+    /// Max size of an ethernet frame aka. the MTU.
+    pub max_segment_size: u16,
+    /// Max packet size for both the IN and OUT endpoints.
+    pub max_packet_size: u16,
+}
+
 /// CDC-NCM class
 pub struct CdcNcmClass<'d, D: Driver<'d>> {
     _comm_if: InterfaceNumber,
@@ -255,13 +265,8 @@ pub struct CdcNcmClass<'d, D: Driver<'d>> {
 
 impl<'d, D: Driver<'d>> CdcNcmClass<'d, D> {
     /// Create a new CDC NCM class.
-    pub fn new(
-        builder: &mut Builder<'d, D>,
-        state: &'d mut State<'d>,
-        mac_address: [u8; 6],
-        max_packet_size: u16,
-    ) -> Self {
-        state.shared.mac_addr = mac_address;
+    pub fn new(builder: &mut Builder<'d, D>, state: &'d mut State<'d>, config: Config) -> Self {
+        state.shared.mac_addr = config.mac_address;
 
         let mut func = builder.function(USB_CLASS_CDC, CDC_SUBCLASS_NCM, CDC_PROTOCOL_NONE);
 
@@ -287,6 +292,7 @@ impl<'d, D: Driver<'d>> CdcNcmClass<'d, D> {
                 u8::from(comm_if) + 1, // bSubordinateInterface
             ],
         );
+        let max_segment_size = config.max_segment_size.to_le_bytes();
         alt.descriptor(
             CS_INTERFACE,
             &[
@@ -296,8 +302,8 @@ impl<'d, D: Driver<'d>> CdcNcmClass<'d, D> {
                 0,                      // |
                 0,                      // |
                 0,                      // |
-                0xea,                   // wMaxSegmentSize = 1514
-                0x05,                   // |
+                max_segment_size[0],    // wMaxSegmentSize
+                max_segment_size[1],    // |
                 0,                      // wNumberMCFilters
                 0,                      // |
                 0,                      // bNumberPowerFilters
@@ -320,8 +326,8 @@ impl<'d, D: Driver<'d>> CdcNcmClass<'d, D> {
         let data_if = iface.interface_number();
         let _alt = iface.alt_setting(USB_CLASS_CDC_DATA, 0x00, CDC_PROTOCOL_NTB, None);
         let mut alt = iface.alt_setting(USB_CLASS_CDC_DATA, 0x00, CDC_PROTOCOL_NTB, None);
-        let read_ep = alt.endpoint_bulk_out(max_packet_size);
-        let write_ep = alt.endpoint_bulk_in(max_packet_size);
+        let read_ep = alt.endpoint_bulk_out(config.max_packet_size);
+        let write_ep = alt.endpoint_bulk_in(config.max_packet_size);
 
         drop(func);
 
@@ -341,7 +347,7 @@ impl<'d, D: Driver<'d>> CdcNcmClass<'d, D> {
             read_ep,
             write_ep,
             _control: &state.shared,
-            max_packet_size: max_packet_size as usize,
+            max_packet_size: config.max_packet_size as usize,
         }
     }
 
